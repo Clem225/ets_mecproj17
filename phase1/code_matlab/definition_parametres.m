@@ -1,3 +1,4 @@
+
 %% REU 02/10
 % D?finition des param?tres de notre avion
 
@@ -29,15 +30,27 @@ TSFC = 0.5;
 
 %% ON DEFINIT LES PARAMETRES PAR DEFAUT
 M_cruise = 0.85;
-H_cruise = 40000; %Altitude de croisi?re usuelle
+H_cruise = 32e3; %Altitude de croisi?re usuelle
+
 T_loiter=30; %30min d'attente
 Wres=0.05; % Fraction d'essence avant l'atterrisage
 Wtrap=0.01; % Fraction d'essence dans les conduites
 
 
 %% ON DETERMINE LE POIDS
-[ Wto, Wfuel, Wempty ] = itertow( 'jet-transport', M_cruise, H_cruise, ...
+    [ Wto, Wfuel, Wempty ] = itertow( 'jet-transport', M_cruise, H_cruise, ...
 A, TSFC, T_loiter, Wres, Wtrap, Wpayload, range );
+    Cd0 = 0.021;
+    W2 = 0.975*(1-0.04*M_cruise)*Wto
+    WS_TO = 125;
+    S= Wto/WS_TO;
+    cte = 2/M_cruise^2*W2/S*(3*1/(pi*A*0.8)*1/Cd0)^0.5;
+    H = [0:1e3:40e3];
+
+    for i=1:size(H,2)
+        var(i) = 1.4*1716.5*9/5*tempatmstd(H(i))*density(H(i));
+    end
+    H_cruise = interp1(var,H,cte);
 
 Wlanding = Wto-Wfuel;
 
@@ -45,6 +58,7 @@ Wlanding = Wto-Wfuel;
 %WS_TO = Wto/S;
 WS_TO = 125;
 S= Wto/WS_TO;
+
 
 %% ON DEFINIT b
 b = sqrt(A*S);
@@ -62,10 +76,12 @@ T_Wto = T/Wto;
 
 %% AERODYNAMIQUE/PERFORMANCE
 % Finesse max
-F_max = finesse(M_cruise,A)
-
+Cd0 = 0.021;
+%F_max = finesse(M_cruise,A)
+F_max = 1/sqrt(4*1/(pi*A*0.8)*Cd0)
 % Distance d'atterissage fix?e 
-SL = 5300; % Optimale : 4600 ft, R?aliste : 5900 ft
+SL = 4400; % Optimale : 4600 ft, R?aliste : 5900 ft
+
 
 % Calcul du CLmax,L = CLmax
 LP = (SL - 400) / 118;
@@ -84,3 +100,21 @@ Vs = sqrt((2*Wto)/(p*S*CLmax))
 
 % Calcul de la vitesse de decollage
 Vto = 1.1*Vs
+
+
+Range = [5000 6000 7000];
+Wpayload = ([70 80]+3)*240;
+hcruse = [27 32 47]*1e3;
+DOE = fullfact([3 2 3]);
+W = zeros(size(DOE,1),3);
+for i=1:size(DOE,1)
+    [ Wto, Wfuel, Wempty ] = itertow('jet-transport',M_cruise, hcruse(DOE(i,3)), A, TSFC, ...
+    T_loiter, 0.05, 0.01, Wpayload(DOE(i,2)), Range(DOE(i,1)));
+    W(i,:) = [Wto Wfuel Wempty];
+end
+figure(1)
+interactionplot(W(:,1)/1E3,DOE,'varnames',{'Range','PAX','H Cruise'});
+title('Influence des Param�tres de mission sur le Poids au d�collage W_{to} x1000')
+figure(2)
+interactionplot(W(:,2)/1E3,DOE,'varnames',{'Range','PAX','H Cruise'});
+title('Influence des Param�tres de mission sur le Poids de fuel W_{f} x1000')

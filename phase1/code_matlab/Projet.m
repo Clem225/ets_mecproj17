@@ -1,5 +1,17 @@
 %= Main file for the calculation 
+Cd = 0.021;
+cte = (2/0.85^2*W2/S).*(3*1/(pi*9.40*0.8)./Cd).^0.5;
+H = [0:1e3:40e3];
 
+for i=1:size(H,2)
+    var(i) = 1.4*1716.5*9/5*tempatmstd(H(i))*density(H(i));
+end
+
+plot(H,var,'r-');
+test = interp1(var,H,cte)/1E3
+%plot(Cd,interp1(var,H,cte)/1E3);
+
+%%
 %== Mission Parameter
     
     PAX = 70;   % Passager number.
@@ -13,22 +25,20 @@
     %hcruse = 40e3; % Crusing Altitude (ft)
     TSFC = 0.5;
     
-    Range = [5000:100:7000];
-    Wpayload = ([70:80]+3)*220;
-    hcruse = [36e3:1e3:39e3];
-    W = zeros(size(Range,2),size(Wpayload,2),size(hcruse,2),3);
-    for i=1:size(Range,2)
-        for j=1:size(Wpayload,2)
-            for k=1:size(hcruse,2)
-                [ Wto, Wfuel, Wempty ] = itertow('jet-transport',M, hcruse(k), A, TSFC, twaiting*60, 0.05, 0.01, Wpayload(j), Range(i));
-                W(i,j,k,:) = [Wto Wfuel Wempty];
-            end
-        end
+    Range = [5000 6000 7000];
+    Wpayload = ([70 80]+3)*240;
+    hcruse = [27 32 47]*1e3;
+    DOE = fullfact([3 2 3]);
+    W = zeros(size(DOE,1),3);
+    for i=1:size(DOE,1)
+        [ Wto, Wfuel, Wempty ] = itertow('jet-transport',M, hcruse(DOE(i,3)), A, TSFC, ...
+            twaiting*60, 0.05, 0.01, Wpayload(DOE(i,2)), Range(DOE(i,1)));
+        W(i,:) = [Wto Wfuel Wempty];
     end
+    figure(1)
+    interactionplot(W(:,1)/1E3,DOE,'varnames',{'Range','PAX','H Cruise'});
+    title('Influence des Paramètres de mission sur le Poids au décollage W_{to} x1000')
+    figure(2)
+    interactionplot(W(:,2)/1E3,DOE,'varnames',{'Range','PAX','H Cruise'});
+    title('Influence des Paramètres de mission sur le Poids de fuel W_{f} x1000')
 
-    
-  for i=1:8
-    subplot(4,2,i);
-    plot(Range,W(:,:,floor((i-1)/2)+1,mod(i-1,2)+1)/1e3);
-    grid on;
-  end
